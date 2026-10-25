@@ -327,7 +327,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
             </div>
             <div class="card-b">
               <label class="sr" for="msg">Customer's WhatsApp message</label>
-              <textarea id="msg" class="input" placeholder="e.g. bhaiya 2 kilo atta, 1 amul butter chhota, 6 ande, ek maggi"></textarea>
+              <textarea id="msg" class="input" placeholder="e.g. chetta 2 kilo puttu podi, 1 Milma butter cheriya, 6 mutta"></textarea>
               <div class="row" style="margin-top:12px">
                 <div class="grow" style="min-width:160px">
                   <label class="sr" for="customer">Customer name</label>
@@ -407,14 +407,14 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
           <span class="muted" id="skuCount" style="margin-left:auto; font-size:13px"></span>
         </div>
         <div class="tbl-wrap"><table class="tbl">
-          <thead><tr><th title="The name printed on the bill">Product</th><th title="kg / litre: priced per kg or litre, any amount can be billed. piece / pack: priced per item">Sold by</th><th style="text-align:right" title="Price per kg, litre, piece or pack">Price ₹</th><th title="Products that are sizes of the same thing share a group (e.g. maggi) and are marked small or big">Size options</th><th title="Words customers type for this product, separated by ;">Customer words</th><th title="Switch off when you run out. Orders for it are flagged and the reply says it isn't available">Stock</th><th></th></tr></thead>
+          <thead><tr><th title="The name printed on the bill">Product</th><th title="kg / litre: priced per kg or litre, any amount can be billed. piece / pack: priced per item">Sold by</th><th style="text-align:right" title="Price per kg, litre, piece or pack">Price ₹</th><th title="Products that are sizes of the same thing share a group (e.g. banana chips) and are marked small or big">Size options</th><th title="Words customers type for this product, separated by ;">Customer words</th><th title="Switch off when you run out. Orders for it are flagged and the reply says it isn't available">Stock</th><th></th></tr></thead>
           <tbody id="skuRows"></tbody></table></div>
         <div class="card-b"><div class="legend">
-          <div><b>Product</b> The name printed on the bill. Put the pack size in it (“Amul Butter 100 g”, “Milk 1 L”) and Kurippu uses it to work out packs: 2 litre milk → 2 × 1 L.</div>
+          <div><b>Product</b> The name printed on the bill. Put the pack size in it (“Milma Butter 100 g”, “Milma Milk 1 L”) and Kurippu uses it to work out packs: 2 litre milk → 2 × 1 L.</div>
           <div><b>Sold by</b> <i>kg / litre</i>: priced per kg or litre, so 0.25 kg can be billed. <i>piece / pack</i>: priced per item, always whole numbers.</div>
           <div><b>Price ₹</b> Per kg, litre, piece or pack. This is the only place prices come from; the AI never sets a price.</div>
-          <div><b>Size options</b> For one product in several sizes: give them the same group (e.g. “maggi”) and mark them small or big. “Chhota/lahan” then picks small, “bada/motha” picks big; otherwise Kurippu asks.</div>
-          <div><b>Customer words</b> What customers actually type, separated by “;” e.g. <i>ande; anda; अंडे</i>. Corrections you make while billing are also remembered.</div>
+          <div><b>Size options</b> For one product in several sizes: give them the same group (e.g. “banana chips”) and mark them small or big. “Cheriya” then picks small, “valiya” picks big; otherwise Kurippu asks.</div>
+          <div><b>Customer words</b> What customers actually type, separated by “;” e.g. <i>mutta; മുട്ട; muttaka</i>. Corrections you make while billing are also remembered.</div>
           <div><b>Stock</b> You set this. Kurippu doesn't count stock. Switch it off when you run out: orders for it turn red, it's left off the bill, and the reply says “not available right now”.</div>
         </div></div>
       </div>
@@ -428,12 +428,12 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
       <div class="order-grid">
         <div class="card"><div class="card-b">
           <div class="form-grid">
-            <div class="field"><label for="s_name">Shop name</label><input id="s_name" class="input" placeholder="Joshi Kirana Stores"></div>
+            <div class="field"><label for="s_name">Shop name</label><input id="s_name" class="input" placeholder="Kochi Naadan Stores"></div>
             <div class="field"><label for="s_phone">Shop phone</label><input id="s_phone" class="input" inputmode="tel"></div>
-            <div class="field" style="grid-column:1/-1"><label for="s_address">Address</label><input id="s_address" class="input" placeholder="Kothrud, Pune"></div>
+            <div class="field" style="grid-column:1/-1"><label for="s_address">Address</label><input id="s_address" class="input" placeholder="Fort Kochi, Kerala"></div>
             <div class="field"><label for="s_upi_id">UPI ID</label><input id="s_upi_id" class="input" placeholder="shopname@okaxis" autocomplete="off">
               <span class="hint" id="upiHint">Customers get a QR for the exact bill amount.</span></div>
-            <div class="field"><label for="s_delivery_note">Line added to every reply</label><input id="s_delivery_note" class="input" placeholder="Delivery by 6 PM"></div>
+            <div class="field"><label for="s_delivery_note">Line added to every reply</label><input id="s_delivery_note" class="input" placeholder="Delivery by 6 PM, Fort Kochi"></div>
           </div>
           <div class="row" style="margin-top:18px"><button class="btn primary" id="saveShop">Save settings</button></div>
         </div></div>
@@ -553,11 +553,11 @@ async function checkModel() {
 
 /* ---------- order flow ---------- */
 const SAMPLES = [
-  "bhaiya 2 kilo atta, 1 amul butter chhota, 6 ande, ek maggi",
-  "काका, 1 किलो पोहे, अर्धा किलो साखर, 6 अंडी आणि 1 चहा पावडर पाठवा",
-  "dada 2 kilo kanda, 1 kilo batata, ek amul butter motha ani 3 maggi lahan",
-  "Hi uncle, please send 1 kg kaju, 200 gm paneer, 1 fortune oil and 12 eggs",
-  "bhaiya dedh kilo chawal, paav kilo jeera, dahi aur thoda dhaniya bhej do",
+  "chetta 2 kilo puttu podi, 1 Milma butter cheriya, 6 mutta, oru packet banana chips",
+  "ചേച്ചി അര കിലോ പഞ്ചസാരയും ഒരു ലിറ്റർ പാലും വേണം",
+  "randu kilo cheriya ulli, oru kilo urulakizhangu, oru Milma butter valiya",
+  "Hi, please send 1 kg matta ari, 200 gm paneer, 1 litre coconut oil and 12 mutta",
+  "chetta onnara kilo matta ari, kaal kilo jeerakam, thayirum kurachu kariveppilayum venam",
 ];
 SAMPLES.forEach(s => $("samples").append(el("button", { class: "chip", text: s.length > 42 ? s.slice(0, 40) + "…" : s, title: s,
   onclick: () => { $("msg").value = s; $("msg").focus(); } })));
@@ -801,7 +801,7 @@ function renderBill() {
   if (q?.skipped?.length) body.append(el("div", { class: "warnbox", style: "margin-top:12px", text: "Not available, will be mentioned in the reply: " + q.skipped.join(", ") }));
   if (pending) body.append(el("div", { class: "warnbox", style: "margin-top:12px", text: `${pending} item${pending > 1 ? "s" : ""} marked “Check”. Look them over before billing.` }));
   const learn = el("input", { type: "checkbox", id: "learnBox", checked: ORDER.learn !== false, onchange: () => { ORDER.learn = learn.checked; } });
-  body.append(el("label", { class: "checkline", style: "margin:14px 0" }, learn, el("span", {}, "Remember my corrections ", el("span", { class: "muted", text: "(e.g. “biskut” → Parle-G next time)" }))));
+  body.append(el("label", { class: "checkline", style: "margin:14px 0" }, learn, el("span", {}, "Remember my corrections ", el("span", { class: "muted", text: "(e.g. “kariveppila” → Curry Leaves next time)" }))));
   const createBtn = el("button", { class: "btn primary lg", id: "createBtn", disabled: !billable || !!ORDER.quoteErr, onclick: createBill },
     icon("check"), el("span", { text: "Create bill" }), el("span", { class: "kbd", text: "Ctrl ↵" }));
   body.append(createBtn);
@@ -1015,8 +1015,8 @@ function previewShop() {
   $("upiHint").textContent = bad ? "That doesn't look like a UPI ID (it should look like name@bank)." : "Customers get a QR for the exact bill amount.";
   $("upiHint").style.color = bad ? "var(--bad)" : "";
   const name = $("s_name").value.trim() || "our shop";
-  $("replyPreview").textContent = ["Namaste Rahul ji!", `Your order #12 from ${name}:`, "• Wheat Atta (loose) – 2 kg – ₹84", "• Eggs – 6 pc – ₹42", "*Total: ₹126*",
-    upi ? `Pay by UPI: ${upi}` : null, $("s_delivery_note").value.trim() || null, "Dhanyavaad 🙏"].filter(Boolean).join("\n");
+  $("replyPreview").textContent = ["Namaskaram Anjali!", `Ningalude order #12 from ${name}:`, "• Puttu Podi (loose) – 2 kg – ₹84", "• Eggs – 6 pc – ₹42", "*Total: ₹126*",
+    upi ? `Pay by UPI: ${upi}` : null, $("s_delivery_note").value.trim() || null, "Nanni 🙏"].filter(Boolean).join("\n");
 }
 SHOP_KEYS.forEach(k => $("s_" + k).addEventListener("input", previewShop));
 $("saveShop").onclick = async () => {

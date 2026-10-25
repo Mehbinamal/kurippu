@@ -1,8 +1,8 @@
 # Kurippu (കുറിപ്പ്)
 
-**WhatsApp orders → bills for nammude naadan kirana/bakery stores, on the shop's own laptop.**
+**WhatsApp orders → bills for nammude naadan grocery/bakery kadakal, on the shop's own laptop.**
 
-A customer sends *"Chetta 2 kilo ari, 1 amul butter cheriya, 6 mutta, oru maggi"*. The shopkeeper pastes it into Kurippu and in about a second gets a checked order, a printable packing slip, a ready-to-send WhatsApp reply and a UPI QR for the exact amount. An open-weight model (**Gemma 4**, through Ollama) reads the Manglish, Malayalam, or English message. **Plain code** matches items to the shop's own price list and does all the money maths. Nothing leaves the computer.
+A customer sends *"Chetta 2 kilo matta ari, 1 Milma butter cheriya, 6 mutta, oru packet banana chips"*. The shopkeeper pastes it into Kurippu and in about a second gets a checked order, a printable packing slip, a ready-to-send WhatsApp reply and a UPI QR for the exact amount. An open-weight model (**Gemma 4**, through Ollama) reads the Manglish, Malayalam, or English message. **Plain code** matches items to the shop's own price list and does all the money maths. Nothing leaves the computer.
 
 ![New order: items checked against the price list, live bill, WhatsApp reply](docs/order.jpg)
 ![Orders dashboard: today's sales, still to collect, one-click status](docs/orders.jpg)
@@ -25,10 +25,10 @@ Built for the Hacktoberfest 2026 DEV "Side Hustle" challenge.
 | Prices, totals, rounding | Code (`Decimal`), from the price list only |
 | Anything unsure (several sizes, no quantity, partial packs) is yellow; unknown items are red; out-of-stock items are left out and named in the reply | Code |
 | Confirm, then print / copy reply / show UPI QR | The shopkeeper. Kurippu never sends a message by itself |
-| Corrections are remembered (*"naranga" → Lemon*), and show up as customer words in the price list, where a wrong one can be deleted | Code (learned aliases) |
+| Corrections are remembered (*"kariveppila" → Curry Leaves*), and show up as customer words in the price list, where a wrong one can be deleted | Code (learned aliases) |
 
 Also:
-- **Searchable product picker**: type "mutta" or "but" to find Eggs or Amul Butter; suggestions first, keyboard friendly.
+- **Searchable product picker**: type "mutta" or "Milma" to find Eggs or Milma Butter; suggestions first, keyboard friendly.
 - **Live bill** that updates as you change products or quantities (the server still does the maths).
 - **One-tap pack choices** when the customer asks for an amount that isn't whole packs (250 g of jeerakam sold in 100 g packs → "2 × 100 g" or "3 × 100 g").
 - Items that aren't in the price list or are out of stock are **named in the reply** ("Kshamikkanam, ithu ippo stock illa: …").
@@ -50,7 +50,7 @@ pip install -e ".[dev]"
 kurippu
 ```
 
-Open http://127.0.0.1:8765, add your shop name and UPI ID in **Shop**, edit the **Price list** (a sample kirana list is preloaded; its prices are made up), and paste an order. Click **Try a sample** for test messages.
+Open http://127.0.0.1:8765, add your shop name and UPI ID in **Shop**, edit the **Price list** (a sample Kerala grocery list is preloaded; its prices are made up), and paste an order. Click **Try a sample** for test messages.
 
 Options: `KURIPPU_MODEL` (any Ollama model), `OLLAMA_HOST`, `KURIPPU_DB` (database path, default `data/kurippu.db`), `KURIPPU_HOST`, `KURIPPU_PORT`.
 
@@ -77,7 +77,7 @@ Read this honestly: I wrote these 20 messages while building Kurippu, against a 
 python -m pytest
 ```
 
-41 tests cover the matcher (aliases, units, pack sizes and one-tap pack choices, sizes, unknown and out-of-stock items, learned corrections), the bill maths (prices only from the price list, rounding, bad quantities, NaN/infinite values), Indian rupee formatting, the UPI link and UPI ID check, WhatsApp export parsing (system and media lines skipped), price-list validation, model-output validation and retry, preview vs. saved bills, and end-to-end API runs with a fake model.
+44 tests cover the matcher (aliases, units, pack sizes and one-tap pack choices, sizes, unknown and out-of-stock items, learned corrections), the bill maths (prices only from the price list, rounding, bad quantities, NaN/infinite values), Indian rupee formatting, the UPI link and UPI ID check, WhatsApp export parsing (system and media lines skipped), price-list validation, model-output validation and retry, preview vs. saved bills, and end-to-end API runs with a fake model.
 
 ## Layout
 

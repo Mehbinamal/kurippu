@@ -40,35 +40,35 @@ SCHEMA = {
     "required": ["is_order", "items"],
 }
 
-SYSTEM = """You read grocery orders that customers send to a small Indian kirana shop on WhatsApp.
-Messages can be in Hindi, Marathi, English or a mix, in Latin or Devanagari script.
+SYSTEM = """You read grocery orders that customers send to a small Kerala grocery shop on WhatsApp.
+Messages can be in Malayalam, Manglish (Malayalam written in Latin script), English or a mix, in Malayalam or Latin script.
 
 Return JSON only. For every item the customer asks for, give:
 - raw: the customer's own words for that item, copied exactly.
-- item: a short lowercase English name for the product, keeping any brand (e.g. "amul butter", "wheat atta", "eggs").
+- item: a short lowercase English name for the product, keeping any brand (e.g. "milma butter", "matta rice", "eggs").
 - qty: a number, or null if no quantity is given.
 - unit: one of kg, g, l, ml, pc, pack, dozen, or null if none is said.
-- size: "small" for chhota/chota/lahan/लहान/छोटा/small, "big" for bada/mota/motha/मोठा/बड़ा/large, otherwise null.
+- size: "small" for cheriya/cheruthu/ചെറിയ/small, "big" for valiya/valuthu/വലിയ/large, otherwise null.
 
-Number words: ek/एक=1, do/don/दो/दोन=2, teen/तीन=3, char/चार=4, paanch/पाच=5, chhe/सहा=6, dus/दहा=10,
-dedh/डेढ़/दीड=1.5, dhai/adhai/अडीच=2.5, aadha/adha/ardha/आधा/अर्धा=0.5, sava=1.25, darjan/dozen=1 dozen.
-"paav"/"pav" before a unit word means 0.25 (paav kilo = 0.25 kg), but "pav" on its own is bread rolls (an item).
-kilo/kg -> kg, gram/gm/grm -> g, litre/liter/ltr -> l, packet/pkt/puda -> pack, piece/nag -> pc.
+Number words: onnu/oru=1, randu=2, moonnu=3, naalu=4, anchu=5, aaru=6, pathu=10,
+onnara=1.5, ara=0.5, kaal=0.25, mukkaal=0.75, randara=2.5, dozen=1 dozen.
+"kaal" before a unit word means 0.25 (kaal kilo = 0.25 kg).
+kilo/kg -> kg, gram/gm -> g, litre/ltr -> l, packet/pkt -> pack, piece/ennam -> pc.
 
 Never invent items, never add prices. If the message is not an order (greeting, thanks, a question, payment
 confirmation), return {"is_order": false, "items": []}."""
 
 EXAMPLES = [
-    ("bhaiya 2 kilo atta, 1 amul butter chhota aur 6 ande bhejna",
+    ("chetta 2 kilo puttu podi, 1 Milma butter cheriya, 6 mutta ayakkane",
      {"is_order": True, "items": [
-         {"raw": "2 kilo atta", "item": "wheat atta", "qty": 2, "unit": "kg", "size": None},
-         {"raw": "1 amul butter chhota", "item": "amul butter", "qty": 1, "unit": None, "size": "small"},
-         {"raw": "6 ande", "item": "eggs", "qty": 6, "unit": "pc", "size": None}]}),
-    ("दादा अर्धा किलो साखर आणि एक लिटर दूध पाठवा",
+         {"raw": "2 kilo puttu podi", "item": "puttu podi", "qty": 2, "unit": "kg", "size": None},
+         {"raw": "1 Milma butter cheriya", "item": "milma butter", "qty": 1, "unit": None, "size": "small"},
+         {"raw": "6 mutta", "item": "eggs", "qty": 6, "unit": "pc", "size": None}]}),
+    ("ചേച്ചി അര കിലോ പഞ്ചസാരയും ഒരു ലിറ്റർ പാലും വേണം",
      {"is_order": True, "items": [
-         {"raw": "अर्धा किलो साखर", "item": "sugar", "qty": 0.5, "unit": "kg", "size": None},
-         {"raw": "एक लिटर दूध", "item": "milk", "qty": 1, "unit": "l", "size": None}]}),
-    ("ok thank you bhaiya, paise bhej diye 🙏", {"is_order": False, "items": []}),
+         {"raw": "അര കിലോ പഞ്ചസാരയും", "item": "sugar", "qty": 0.5, "unit": "kg", "size": None},
+         {"raw": "ഒരു ലിറ്റർ പാലും", "item": "milk", "qty": 1, "unit": "l", "size": None}]}),
+    ("nanni chetta, paisa ayachu 🙏", {"is_order": False, "items": []}),
 ]
 
 

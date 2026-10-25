@@ -21,6 +21,8 @@ _SPACE = re.compile(r"\s+")
 _QTY_WORDS = re.compile(
     r"\b(\d+(\.\d+)?|kilo|kg|kgs|gram|grams|gm|gms|g|litre|liter|ltr|l|ml|packet|packets|pkt|pack|"
     r"piece|pieces|pc|pcs|nag|dozen|darjan|ek|do|teen|char|paanch|aadha|adha|ardha|dedh|dhai|paav|"
+    r"onnu|onn|oru|randu|moonnu|naalu|anchu|aaru|pathu|onnara|ara|kaal|mukkaal|randara|"
+    r"cheriya|cheruthu|valiya|valuthu|chetta|chechi|venam|ayakkane|"
     r"chhota|chota|bada|bara|mota|motha|small|big|large|aur|and|ani|bhi|bhejna|bhejo|chahiye|pathva)\b")
 
 
@@ -42,7 +44,7 @@ def _strip_qty(text):
 
 
 def _names(sku):
-    """Names to compare against, without pack sizes ("Amul Butter 100 g" -> "amul butter")."""
+    """Names to compare against, without pack sizes ("Milma Butter 100 g" -> "milma butter")."""
     return [n for n in {_strip_qty(x) for x in [sku.name, sku.group, *sku.aliases] if x} if n]
 
 
@@ -128,7 +130,7 @@ def match_line(item, skus, learned):
         else:
             top_score, top = scored[0]
             if top_score == 100:
-                # An exact name/alias hit beats fuzzy look-alikes ("atta" vs "aashirvaad atta").
+                # An exact name/alias hit beats fuzzy look-alikes ("matta ari" vs "Kerala Matta Rice").
                 close = [s for sc, s in scored if sc == 100]
             else:
                 close = [s for sc, s in scored if sc >= top_score - 6]
@@ -137,7 +139,7 @@ def match_line(item, skus, learned):
                 sized = [s for s in close if item.get("size") and s.size == item["size"]]
                 said = amount_said(item.get("qty"), item.get("unit"))
                 if not sized and said:
-                    # "1 litre doodh" -> the 1 L pack; "2 litre" -> 1 L packs before 500 ml ones.
+                    # "1 litre paal" -> the 1 L pack; "2 litre" -> 1 L packs before 500 ml ones.
                     fits = [s for s in close if (p := pack_size(s)) and p[1] == said[1]
                             and (said[0] / p[0]) == (said[0] / p[0]).to_integral_value()]
                     fits.sort(key=lambda s: -pack_size(s)[0])
@@ -171,7 +173,7 @@ def match_line(item, skus, learned):
 
 
 def pack_choices(qty, unit, sku):
-    """When the customer asks for an amount that isn't a whole number of packs (250 g of jeera
+    """When the customer asks for an amount that isn't a whole number of packs (250 g of jeerakam
     sold in 100 g packs), offer the two nearest whole-pack options for one-tap picking."""
     said, pack = amount_said(qty, unit), pack_size(sku)
     if not (said and pack and said[1] == pack[1]):

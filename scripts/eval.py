@@ -1,4 +1,4 @@
-"""Accuracy check: 20 made-up WhatsApp orders (Hinglish, Marathi, Hindi, English) against the
+"""Accuracy check: 20 made-up WhatsApp orders (Manglish, Malayalam, English) against the
 sample price list. A line counts as correct only if Kurippu picks the right product AND quantity
 with no human help ("ok" status). Run: python scripts/eval.py"""
 import sys, time
@@ -10,26 +10,26 @@ from kurippu import matcher, reader
 from kurippu.store import Store
 
 CASES = [
-    ("bhaiya 2 kilo atta aur 6 ande bhejna", {"atta-loose": "2", "eggs": "6"}),
-    ("1 amul butter chhota, 1 litre doodh", {"butter-amul-100g": "1", "milk-amul-1l": "1"}),
-    ("दादा अर्धा किलो साखर आणि एक लिटर दूध", {"sugar": "0.5", "milk-amul-1l": "1"}),
-    ("500 gm poha, 2 kg kanda", {"poha": "0.5", "onion": "2"}),
-    ("1 dozen eggs please", {"eggs": "12"}),
-    ("2 packet parle g aur 1 tata tea", {"parle-g-250g": "2", "tea-tata-250g": "1"}),
-    ("dedh kilo aloo, aadha kilo tamatar", {"potato": "1.5", "tomato": "0.5"}),
-    ("1 kg tur dal 2 kg chawal", {"toor-dal": "1", "rice-kolam": "2"}),
-    ("मला 2 किलो बटाटा आणि 1 किलो कांदा हवा आहे", {"potato": "2", "onion": "1"}),
-    ("मुझे 1 किलो चीनी और 2 पैकेट मैगी बड़ी चाहिए", {"sugar": "1", "maggi-280g": "2"}),
-    ("send 1 fortune oil and 1 tata salt", {"oil-sunflower-1l": "1", "salt-tata-1kg": "1"}),
-    ("2 dahi, 1 bread", {"dahi-400g": "2", "bread": "1"}),
-    ("ek amul butter bada", {"butter-amul-500g": "1"}),
-    ("3 maggi chhoti wali", {"maggi-70g": "3"}),
-    ("1 aashirvaad atta 5 kg ka packet", {"atta-aashirvaad-5kg": "1"}),
-    ("paav kilo jeera", {"jeera-100g": None}),          # 250 g asked, sold in 100 g packs -> should be flagged
-    ("2 litre dudh aur 12 ande", {"milk-amul-1l": "2", "eggs": "12"}),
-    ("kothimbir 2 judi, 1 kg tomato", {"coriander": "2", "tomato": "1"}),
-    ("1 laadi pav and 1 packet parle", {"pav-6": "1", "parle-g-250g": "1"}),
-    ("thank you bhaiya, payment kar diya", {}),
+    ("chetta 2 kilo puttu podi, 6 mutta ayakkane", {"atta-loose": "2", "eggs": "6"}),
+    ("1 Milma butter cheriya, 1 litre paal", {"butter-amul-100g": "1", "milk-amul-1l": "1"}),
+    ("ചേച്ചി അര കിലോ പഞ്ചസാരയും ഒരു ലിറ്റർ പാലും വേണം", {"sugar": "0.5", "milk-amul-1l": "1"}),
+    ("500 gm aval, 2 kg cheriya ulli", {"poha": "0.5", "onion": "2"}),
+    ("1 dozen mutta please", {"eggs": "12"}),
+    ("2 packet achappam and 1 Kannan Devan tea", {"parle-g-250g": "2", "tea-tata-250g": "1"}),
+    ("onnara kilo urulakizhangu, ara kilo thakkali", {"potato": "1.5", "tomato": "0.5"}),
+    ("1 kg cherupayar 2 kg matta ari", {"toor-dal": "1", "rice-kolam": "2"}),
+    ("എനിക്ക് 2 കിലോ ഉരുളക്കിഴങ്ങും 1 കിലോ ചെറിയ ഉള്ളിയും വേണം", {"potato": "2", "onion": "1"}),
+    ("1 kilo panchasara venam, 2 packet banana chips valiya venam", {"sugar": "1", "maggi-280g": "2"}),
+    ("send 1 Kera coconut oil and 1 pack uppu", {"oil-sunflower-1l": "1", "salt-tata-1kg": "1"}),
+    ("2 thayir, 1 bakery bread", {"dahi-400g": "2", "bread": "1"}),
+    ("oru Milma butter valiya", {"butter-amul-500g": "1"}),
+    ("3 banana chips cheriya", {"maggi-70g": "3"}),
+    ("1 Eastern puttu podi packet", {"atta-aashirvaad-5kg": "1"}),
+    ("kaal kilo jeerakam", {"jeera-100g": None}),      # 250 g asked, sold in 100 g packs -> should be flagged
+    ("2 litre paal and 12 mutta", {"milk-amul-1l": "2", "eggs": "12"}),
+    ("kariveppila 2 bunch, 1 kg thakkali", {"coriander": "2", "tomato": "1"}),
+    ("1 palappam pack and 1 achappam pack", {"pav-6": "1", "parle-g-250g": "1"}),
+    ("nanni chetta, payment cheythu", {}),
 ]
 
 st = Store(":memory:")

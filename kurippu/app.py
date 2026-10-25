@@ -141,7 +141,7 @@ def create_app(store=None, read=None):
             raise HTTPException(400, "Nothing to bill: choose a product for at least one line")
         for ln in body.lines:  # remember corrections only once the bill is valid
             if ln.learn and ln.sku in sku_map:
-                # Remember the customer's own words ("nimbu") as well as the model's English ("lemon").
+                # Remember the customer's own words ("naranga") as well as the model's English ("lemon").
                 for phrase in {ln.phrase, matcher.phrase_key({"raw": ln.raw})}:
                     if phrase and len(phrase) <= 40 and len(phrase.split()) <= 4:
                         store.learn(phrase, ln.sku)

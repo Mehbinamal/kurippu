@@ -95,8 +95,8 @@ def qr_svg(data):
 
 
 def reply_text(shop, customer, bill, order_no, unavailable):
-    greet = f"Namaste {customer.strip()} ji!" if customer.strip() else "Namaste!"
-    lines = [greet, f"Your order #{order_no} from {shop.get('name') or 'our shop'}:"]
+    greet = f"Namaskaram {customer.strip()}!" if customer.strip() else "Namaskaram!"
+    lines = [greet, f"Ningalude order #{order_no} from {shop.get('name') or 'nammude kada'}:"]
     for r in bill["rows"]:
         lines.append(f"• {r['name']} – {r['qty_text']} – {money(Decimal(r['total']))}")
     if Decimal(bill["delivery"]):
@@ -107,12 +107,12 @@ def reply_text(shop, customer, bill, order_no, unavailable):
         lines.append(f"• Round off – {money(Decimal(bill['round_off']))}")
     lines.append(f"*Total: {money(Decimal(bill['total']))}*")
     if unavailable:
-        lines.append("Sorry, not available right now: " + ", ".join(unavailable) + ".")
+        lines.append("Kshamikkanam, ippo stock illa: " + ", ".join(unavailable) + ".")
     if shop.get("upi_id"):
         lines.append(f"Pay by UPI: {shop['upi_id']}")
     if shop.get("delivery_note"):
         lines.append(shop["delivery_note"])
-    lines.append("Dhanyavaad 🙏")
+    lines.append("Nanni 🙏")
     return "\n".join(lines)
 
 
