@@ -2,6 +2,10 @@
 __pycache__/
 *.egg-info/
 .pytest_cache/
+wa-bridge/node_modules/
+wa-bridge/.wwebjs_auth/
+wa-bridge/.wwebjs_cache/
+data/whatsapp.token
 # The shop's database holds real customers' names, phones and orders. Never commit it.
 data/*.db
 data/*.db-*

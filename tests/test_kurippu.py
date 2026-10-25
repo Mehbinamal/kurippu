@@ -278,3 +278,116 @@ def test_reply_shows_round_off(store):
     bill = billing.build_bill([{"sku": "sugar", "qty": "0.5"}], store.sku_map())
     text = billing.reply_text({"name": "Shop"}, "", bill, 1, [])
     assert "Round off – ₹0.50" in text and "*Total: ₹23*" in text
+
+
+def test_live_whatsapp_incoming_is_authenticated_and_deduplicated(store, monkeypatch):
+    monkeypatch.setenv("KURIPPU_WA_TOKEN", "test-token")
+    app = create_app(store=store, read=lambda _: pytest.fail("webhook should not parse the order"))
+    client = TestClient(app)
+    payload = {"msg_id": "inbound-1", "chat_id": "123@c.us", "name": "Anjali",
+               "phone": "123", "body": "2 kilo matta ari"}
+
+    assert client.post("/api/wa/incoming", json=payload).status_code == 401
+    headers = {"X-Kurippu-Token": "test-token"}
+    assert client.post("/api/wa/incoming", json=payload, headers=headers).json() == {"status": "received"}
+    assert client.post("/api/wa/incoming", json=payload, headers=headers).json() == {"status": "duplicate"}
+    assert client.get("/api/wa/inbox").json()[0]["body"] == payload["body"]
+
+
+def test_live_whatsapp_send_uses_saved_recipient_and_prevents_resend(store, monkeypatch):
+    from kurippu import wa_live
+
+    monkeypatch.setenv("KURIPPU_WA_TOKEN", "test-token")
+    store.wa_claim("inbound-2", "123@c.us", "Anjali", "123", "2 kilo matta ari")
+    order_id = store.add_order("Anjali", "123", "2 kilo matta ari", [], "1")
+    sent = []
+    monkeypatch.setattr(wa_live, "send", lambda bridge, token, chat_id, text, upi_uri=None:
+                        sent.append((chat_id, text, upi_uri)))
+    client = TestClient(create_app(store=store))
+    response = client.post("/api/wa/send", json={
+        "msg_id": "inbound-2", "reply": "Your bill is ready", "chat_id": "attacker@c.us",
+        "order_id": order_id,
+    })
+
+    assert response.status_code == 200
+    assert sent == [("123@c.us", "Your bill is ready", None)]
+    assert store.wa_get("inbound-2")["status"] == "sent"
+    assert store.wa_get("inbound-2")["order_id"] == order_id
+    assert client.post("/api/wa/send", json={
+        "msg_id": "inbound-2", "reply": "duplicate reply",
+    }).status_code == 409
+
+
+def test_live_whatsapp_send_failure_requires_manual_retry(store, monkeypatch):
+    import httpx
+    from kurippu import wa_live
+
+    monkeypatch.setenv("KURIPPU_WA_TOKEN", "test-token")
+    store.wa_claim("inbound-3", "123@c.us", "Anjali", "123", "order")
+    order_id = store.add_order("Anjali", "123", "order", [], "1")
+    monkeypatch.setattr(wa_live, "send", lambda *args, **kwargs:
+                        (_ for _ in ()).throw(httpx.ConnectError("offline")))
+    client = TestClient(create_app(store=store))
+
+    response = client.post("/api/wa/send", json={
+        "msg_id": "inbound-3", "reply": "bill", "order_id": order_id,
+    })
+    assert response.status_code == 502
+    assert "check the chat" in response.json()["detail"]
+    assert store.wa_get("inbound-3")["status"] == "send_failed"
+    assert store.wa_get("inbound-3")["reply"] == "bill"
+
+    sent = []
+    monkeypatch.setattr(wa_live, "send", lambda bridge, token, chat_id, text, upi_uri=None:
+                        sent.append((chat_id, text)))
+    retried = client.post("/api/wa/retry", json={"msg_id": "inbound-3"})
+    assert retried.status_code == 200
+    assert sent == [("123@c.us", "bill")]
+    assert store.wa_get("inbound-3")["status"] == "sent"
+
+
+def test_live_whatsapp_surfaces_bridge_send_error(store, monkeypatch):
+    import httpx
+    from kurippu import wa_live
+
+    monkeypatch.setenv("KURIPPU_WA_TOKEN", "test-token")
+    store.wa_claim("inbound-5", "123@lid", "Anjali", "123", "order")
+    response = httpx.Response(
+        502, json={"error": "WhatsApp could not send the message: Could not resolve LID"},
+        request=httpx.Request("POST", "http://bridge/send"))
+    monkeypatch.setattr(wa_live, "send", lambda *args, **kwargs:
+                        (_ for _ in ()).throw(httpx.HTTPStatusError(
+                            "Bad Gateway", request=response.request, response=response)))
+    client = TestClient(create_app(store=store))
+
+    result = client.post("/api/wa/send", json={"msg_id": "inbound-5", "reply": "bill"})
+    assert result.status_code == 502
+    assert "Could not resolve LID" in result.json()["detail"]
+    assert "Could not resolve LID" in store.wa_get("inbound-5")["note"]
+
+
+def test_live_whatsapp_not_configured_is_explicit(store, monkeypatch):
+    monkeypatch.delenv("KURIPPU_WA_TOKEN", raising=False)
+    client = TestClient(create_app(store=store))
+
+    assert client.get("/api/wa/status").json()["configured"] is False
+    assert client.post("/api/wa/incoming", json={
+        "msg_id": "inbound-4", "chat_id": "123@c.us", "body": "order",
+    }).status_code == 503
+
+
+def test_live_whatsapp_status_returns_private_pairing_qr(store, monkeypatch):
+    import base64
+    import httpx
+    from kurippu import wa_live
+
+    monkeypatch.setenv("KURIPPU_WA_TOKEN", "test-token")
+    monkeypatch.setattr(wa_live.httpx, "get", lambda *args, **kwargs:
+                        httpx.Response(200, json={"ready": False, "qr": "test-qr"},
+                                       request=httpx.Request("GET", "http://bridge/status")))
+    client = TestClient(create_app(store=store))
+
+    response = client.get("/api/wa/status")
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["qr_png_base64"]
+    assert base64.b64decode(response.json()["qr_png_base64"]).startswith(b"\x89PNG")

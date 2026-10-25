@@ -189,6 +189,11 @@ textarea.input { height:auto; min-height:120px; padding:12px; resize:vertical; l
 .empty-state .ill { width:56px; height:56px; margin:0 auto 10px; border-radius:16px; display:grid; place-items:center; background:var(--sunken); color:var(--ink-3); }
 .empty-state .ill svg { width:26px; height:26px; }
 .skel { height:62px; margin:10px 16px; border-radius:10px; background:linear-gradient(90deg, var(--sunken), var(--surface-2), var(--sunken)); background-size:200% 100%; animation:shimmer 1.1s infinite; }
+.wa-setup { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:18px; align-items:center; }
+.wa-qr { display:block; width:200px; max-width:100%; height:auto; margin:auto; image-rendering:pixelated; }
+.wa-message { padding:16px; border-top:1px solid var(--border); }
+.wa-message:first-child { border-top:0; }
+.wa-message-body { margin:12px 0; padding:12px; border-radius:var(--r-sm); background:var(--surface-2); white-space:pre-wrap; overflow-wrap:anywhere; }
 @keyframes shimmer { to { background-position:-200% 0; } }
 
 /* receipt */
@@ -276,6 +281,7 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
   .bottomnav .count { position:absolute; top:2px; left:calc(50% + 6px); margin:0; font-size:10.5px; padding:0 6px; }
   .steps { display:none; } .btn .kbd { display:none; }
   #toasts { left:14px; right:14px; bottom:84px; }
+  .wa-setup { grid-template-columns:1fr; }
 }
 @media print {
   body { background:#fff; }
@@ -299,11 +305,35 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
         <div class="model-row"><span class="dot" id="modelDot"></span><span id="modelTitle">Checking model…</span></div>
         <div class="model-sub" id="modelSub">Gemma 4 · runs on this computer</div>
       </div>
-      <div class="privacy"><span data-icon="lock"></span><span>Orders and customer details never leave this computer.</span></div>
+      <div class="privacy"><span data-icon="lock"></span><span>Orders are stored here; WhatsApp carries the messages.</span></div>
     </div>
   </aside>
 
   <main class="main">
+    <!-- ================= WHATSAPP INBOX ================= -->
+    <section class="page" id="page-inbox" aria-labelledby="h-inbox">
+      <div class="topbar">
+        <div><h1 id="h-inbox">WhatsApp inbox</h1><p>Incoming customer messages appear here. Review each order and choose when to send its bill.</p></div>
+        <button class="btn" id="waRefresh"><span data-icon="redo"></span>Refresh</button>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-h"><h2>WhatsApp connection</h2><span class="pill neutral" id="waConnectionBadge" style="margin-left:auto">Checking…</span></div>
+        <div class="card-b">
+          <div class="wa-setup">
+            <div>
+              <div id="waConnectionMessage">Checking the WhatsApp bridge…</div>
+              <div class="hint" id="waConnectionHint" style="margin-top:8px"></div>
+            </div>
+            <img id="waQr" class="wa-qr" alt="WhatsApp Web pairing QR code" hidden>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h2>Recent messages</h2><span class="muted" id="waInboxCount" style="margin-left:auto"></span></div>
+        <div id="waInboxList"><div class="empty-state">Messages will appear here when WhatsApp is connected.</div></div>
+      </div>
+    </section>
+
     <!-- ================= NEW ORDER ================= -->
     <section class="page on" id="page-order" aria-labelledby="h-order">
       <div class="topbar">
@@ -507,10 +537,13 @@ function toast(text, bad) {
 function debounce(fn, ms) { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; }
 
 /* ---------- navigation ---------- */
-const PAGES = [["order", "New order"], ["orders", "Orders"], ["prices", "Price list"], ["shop", "Shop"]];
+const PAGES = [["inbox", "WhatsApp"], ["order", "New order"], ["orders", "Orders"], ["prices", "Price list"], ["shop", "Shop"]];
+let WA_TIMER = null;
 function buildNav(container) {
   PAGES.forEach(([id, label]) => container.append(el("button", { class: "nav-btn", attrs: { "data-page": id }, onclick: () => go(id) },
-    icon(id), el("span", { text: label }), id === "orders" ? el("span", { class: "count", hidden: true, attrs: { "data-open-count": "" } }) : null)));
+    icon(id === "inbox" ? "inbox" : id), el("span", { text: label }),
+    id === "orders" ? el("span", { class: "count", hidden: true, attrs: { "data-open-count": "" } }) :
+      id === "inbox" ? el("span", { class: "count", hidden: true, attrs: { "data-wa-count": "" } }) : null)));
 }
 buildNav($("sideNav")); buildNav($("bottomNav"));
 document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
@@ -519,11 +552,127 @@ function go(page) {
   if (page !== "prices" && PRICE.dirty) { PRICE.rows = structuredClone(SKUS); PRICE.dirty = false; $("saveBar").hidden = true; }
   document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id === "page-" + page));
   document.querySelectorAll(".nav-btn").forEach(b => b.dataset.page === page ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+  if (WA_TIMER) { clearInterval(WA_TIMER); WA_TIMER = null; }
+  if (page === "inbox") {
+    refreshWhatsApp();
+    WA_TIMER = setInterval(refreshWhatsApp, 5000);
+  }
   if (page === "orders") loadOrders();
   if (page === "prices") renderPrices();
   if (page === "shop") loadShop();
   window.scrollTo({ top: 0 });
 }
+
+/* ---------- live WhatsApp inbox ---------- */
+async function refreshWhatsApp() {
+  try {
+    const [status, messages] = await Promise.all([api("/api/wa/status"), api("/api/wa/inbox")]);
+    const badge = $("waConnectionBadge");
+    const qr = $("waQr");
+    qr.hidden = true; qr.removeAttribute("src");
+    if (!status.configured) {
+      badge.textContent = "Setup needed"; badge.className = "pill check";
+      $("waConnectionMessage").textContent = "The WhatsApp bridge is not configured yet.";
+      $("waConnectionHint").textContent = "Create a shared KURIPPU_WA_TOKEN, then start Kurippu and the Node bridge. See the WhatsApp setup section in README.";
+    } else if (status.bridge_down) {
+      badge.textContent = "Bridge offline"; badge.className = "pill check";
+      $("waConnectionMessage").textContent = "The WhatsApp bridge is not running.";
+      $("waConnectionHint").textContent = "Start it with `npm --prefix wa-bridge start`, then refresh this page.";
+    } else if (status.ready) {
+      badge.textContent = "Connected"; badge.className = "pill ok";
+      $("waConnectionMessage").textContent = "WhatsApp is connected and ready.";
+      $("waConnectionHint").textContent = "New direct text messages will appear below. Groups and media messages are currently skipped.";
+    } else if (status.qr_png_base64) {
+      badge.textContent = "Pair your phone"; badge.className = "pill check";
+      $("waConnectionMessage").textContent = "On your phone, open WhatsApp → Linked devices → Link a device, then scan this code.";
+      $("waConnectionHint").textContent = "The session is saved on this computer. Keep this QR private; anyone who scans it can link a device.";
+      qr.src = "data:image/png;base64," + status.qr_png_base64; qr.hidden = false;
+    } else {
+      badge.textContent = "Starting…"; badge.className = "pill neutral";
+      $("waConnectionMessage").textContent = "The bridge is starting WhatsApp Web.";
+      $("waConnectionHint").textContent = "This can take a few seconds. The page checks again automatically.";
+    }
+    drawWaInbox(messages);
+  } catch (error) {
+    $("waConnectionBadge").textContent = "Unavailable";
+    $("waConnectionBadge").className = "pill out";
+    $("waConnectionMessage").textContent = error.message;
+    $("waConnectionHint").textContent = "Check that Kurippu is running, then refresh.";
+  }
+}
+function drawWaInbox(messages) {
+  const actionable = messages.filter(m => ["received", "send_failed"].includes(m.status)).length;
+  document.querySelectorAll("[data-wa-count]").forEach(n => {
+    n.textContent = actionable; n.hidden = !actionable;
+  });
+  $("waInboxCount").textContent = `${messages.length} recent`;
+  const list = $("waInboxList"); list.replaceChildren();
+  if (!messages.length) {
+    list.append(el("div", { class: "empty-state", text: "No messages yet. New WhatsApp messages will show up here." }));
+    return;
+  }
+  const labels = { received: "New", send_failed: "Check send", sending: "Sending…", sent: "Sent", ignored: "Dismissed" };
+  messages.forEach(message => {
+    const isNew = message.status === "received";
+    const isFailed = message.status === "send_failed";
+    const statusClass = message.status === "sent" ? "ok" : (isNew || isFailed) ? "check" : "neutral";
+    const actions = el("div", { class: "row" });
+    if (isNew) {
+      actions.append(el("button", { class: "btn primary sm", text: "Review order", onclick: () => reviewWhatsAppMessage(message) }));
+      actions.append(el("button", { class: "btn ghost sm", text: "Dismiss", onclick: () => dismissWhatsAppMessage(message.msg_id) }));
+    } else if (isFailed) {
+      actions.append(el("button", { class: "btn primary sm", text: "Retry send", onclick: () => retryWhatsAppMessage(message.msg_id) }));
+      actions.append(el("button", { class: "btn ghost sm", text: "Dismiss", onclick: () => dismissWhatsAppMessage(message.msg_id) }));
+    }
+    const timestamp = new Date(message.created * 1000).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+    list.append(el("article", { class: "wa-message" },
+      el("div", { class: "row" },
+        el("strong", { text: message.name || message.phone || "WhatsApp customer" }),
+        message.phone ? el("span", { class: "muted", text: message.phone }) : null,
+        el("span", { class: "pill " + statusClass, text: labels[message.status] || message.status }),
+        el("span", { class: "muted", style: "margin-left:auto; font-size:12px", text: timestamp })),
+      el("div", { class: "wa-message-body", text: message.body }),
+      message.note ? el("div", { class: "hint", style: "margin-bottom:10px", text: message.note }) : null,
+      actions));
+  });
+}
+async function reviewWhatsAppMessage(message) {
+  newOrder();
+  ORDER.waMsgId = message.msg_id;
+  $("msg").value = message.body;
+  $("customer").value = message.name || "";
+  $("phone").value = message.phone || "";
+  go("order");
+  await readOrder();
+}
+async function dismissWhatsAppMessage(msgId) {
+  try {
+    await api("/api/wa/dismiss/" + encodeURIComponent(msgId), {});
+    await refreshWhatsApp();
+  } catch (error) { toast(error.message, true); }
+}
+async function sendWhatsAppReply(messageId, reply, upiUri, orderId, button) {
+  button.disabled = true; button.textContent = "Sending…";
+  try {
+    await api("/api/wa/send", { msg_id: messageId, reply, upi_uri: upiUri, order_id: orderId });
+    ORDER.waSent = true;
+    button.textContent = "Sent on WhatsApp";
+    toast("Reply sent on WhatsApp");
+    refreshWhatsApp();
+  } catch (error) {
+    button.disabled = false; button.textContent = "Send on WhatsApp";
+    toast(error.message, true);
+  }
+}
+async function retryWhatsAppMessage(messageId) {
+  if (!confirm("WhatsApp could not confirm the previous send. Check the chat first so you do not send the reply twice. Retry now?")) return;
+  try {
+    await api("/api/wa/retry", { msg_id: messageId });
+    toast("Reply sent on WhatsApp");
+    await refreshWhatsApp();
+  } catch (error) { toast(error.message, true); }
+}
+$("waRefresh").onclick = refreshWhatsApp;
 
 /* ---------- data ---------- */
 let SKUS = [], SKU = {}, SHOP = {};
@@ -562,7 +711,7 @@ const SAMPLES = [
 SAMPLES.forEach(s => $("samples").append(el("button", { class: "chip", text: s.length > 42 ? s.slice(0, 40) + "…" : s, title: s,
   onclick: () => { $("msg").value = s; $("msg").focus(); } })));
 
-const ORDER = { lines: [], quote: null, quoteErr: "", bill: null, raw: "", seq: 0 };
+const ORDER = { lines: [], quote: null, quoteErr: "", bill: null, raw: "", seq: 0, waMsgId: null, waSent: false };
 const STATUS_LABEL = { ok: "Matched", check: "Check", unknown: "Not in list", out: "Out of stock", skip: "Left out" };
 
 function setStep(n) {
@@ -845,8 +994,15 @@ function renderReceipt(b) {
   const copyBtn = el("button", { class: "btn", onclick: async () => {
     try { await navigator.clipboard.writeText(reply.value); } catch { reply.select(); document.execCommand("copy"); }
     toast("Reply copied. Paste it in WhatsApp"); } }, icon("copy"), "Copy reply");
-  const wa = el("a", { class: "btn primary", href: b.wa_link, target: "_blank", rel: "noopener" }, icon("whatsapp"), "WhatsApp");
-  reply.addEventListener("input", () => { wa.href = (b.wa_link.split("?")[0]) + "?text=" + encodeURIComponent(reply.value); });
+  let wa;
+  if (ORDER.waMsgId) {
+    wa = el("button", { class: "btn primary", disabled: ORDER.waSent, onclick: () =>
+      sendWhatsAppReply(ORDER.waMsgId, reply.value, b.upi_uri, b.order_id, wa) },
+      icon("whatsapp"), ORDER.waSent ? "Sent on WhatsApp" : "Send on WhatsApp");
+  } else {
+    wa = el("a", { class: "btn primary", href: b.wa_link, target: "_blank", rel: "noopener" }, icon("whatsapp"), "WhatsApp");
+    reply.addEventListener("input", () => { wa.href = (b.wa_link.split("?")[0]) + "?text=" + encodeURIComponent(reply.value); });
+  }
   const qr = b.qr_svg ? (() => {
     const svg = new DOMParser().parseFromString(b.qr_svg, "image/svg+xml").documentElement;
     if (!svg || svg.nodeName.toLowerCase() !== "svg") return null;
@@ -860,13 +1016,13 @@ function renderReceipt(b) {
     el("div", { class: "bill-actions", style: "display:flex; flex-direction:column; gap:12px" },
       el("div", { class: "lbl", text: "WhatsApp reply" }), reply,
       el("div", { class: "share" }, copyBtn, wa),
-      el("div", { class: "hint", text: "കുറിപ്പ് സ്വന്തമായി എന്തും അയയ്ക്കില്ല. നിങ്ങൾ ഉത്തരം പരിശോധിച്ച് അയയ്ക്കുക." }),
+      el("div", { class: "hint", text: "Review the reply first. Kurippu sends it only when you press the WhatsApp button." }),
       qr,
       el("div", { class: "share" }, el("button", { class: "btn", onclick: () => window.print() }, icon("print"), "Print slip"),
         el("button", { class: "btn", onclick: newOrder }, icon("plus"), "New order"))));
 }
 function newOrder() {
-  Object.assign(ORDER, { lines: [], quote: null, quoteErr: "", bill: null, raw: "", delivery: "0", discount: "0", counts: null });
+  Object.assign(ORDER, { lines: [], quote: null, quoteErr: "", bill: null, raw: "", delivery: "0", discount: "0", counts: null, waMsgId: null, waSent: false });
   $("msg").value = ""; $("customer").value = ""; $("phone").value = ""; $("itemsCard").hidden = true; $("readErr").hidden = true; $("samplesWrap").hidden = false;
   setStep(1); renderBill(); $("msg").focus();
 }

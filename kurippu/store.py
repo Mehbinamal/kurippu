@@ -103,6 +103,11 @@ class Store:
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, created REAL, customer TEXT, phone TEXT,
                 raw TEXT, lines TEXT, total TEXT, status TEXT DEFAULT 'new');
+            CREATE TABLE IF NOT EXISTS wa_message (
+                msg_id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, name TEXT NOT NULL,
+                phone TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL,
+                note TEXT NOT NULL DEFAULT '', order_id INTEGER, reply TEXT, upi_uri TEXT,
+                created REAL NOT NULL, updated REAL NOT NULL);
         """)
         if not self.skus():
             self.replace_skus(parse_pricelist_csv(SAMPLE_PRICELIST.read_text(encoding="utf-8")))
@@ -183,4 +188,69 @@ class Store:
             raise ValueError("status must be new, packed, delivered or paid")
         with self.db:
             cur = self.db.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
+        return cur.rowcount == 1
+
+    def order_exists(self, order_id):
+        return self.db.execute("SELECT 1 FROM orders WHERE id = ?", (order_id,)).fetchone() is not None
+
+    # WhatsApp inbox
+    def wa_claim(self, msg_id, chat_id, name, phone, body):
+        now = time.time()
+        with self.db:
+            cur = self.db.execute(
+                """INSERT INTO wa_message
+                   (msg_id, chat_id, name, phone, body, status, created, updated)
+                   VALUES (?, ?, ?, ?, ?, 'received', ?, ?)
+                   ON CONFLICT(msg_id) DO NOTHING""",
+                (msg_id, chat_id, name, phone, body, now, now))
+        return cur.rowcount == 1
+
+    def wa_inbox(self, limit=100):
+        now = time.time()
+        with self.db:
+            self.db.execute(
+                """UPDATE wa_message
+                   SET status = 'send_failed',
+                       note = 'Send outcome unknown; check WhatsApp before retrying',
+                       updated = ?
+                   WHERE status = 'sending' AND updated < ?""",
+                (now, now - 120))
+            rows = self.db.execute(
+                "SELECT msg_id, name, phone, body, status, note, order_id, created "
+                "FROM wa_message ORDER BY created DESC LIMIT ?", (max(1, min(limit, 500)),)
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def wa_get(self, msg_id):
+        row = self.db.execute("SELECT * FROM wa_message WHERE msg_id = ?", (msg_id,)).fetchone()
+        return dict(row) if row else None
+
+    def wa_claim_send(self, msg_id, reply, upi_uri=None, order_id=None):
+        with self.db:
+            cur = self.db.execute(
+                """UPDATE wa_message
+                   SET status = 'sending', note = '', reply = ?, upi_uri = ?,
+                       order_id = COALESCE(?, order_id), updated = ?
+                   WHERE msg_id = ? AND status IN ('received', 'send_failed')""",
+                (reply, upi_uri, order_id, time.time(), msg_id))
+        return cur.rowcount == 1
+
+    def wa_dismiss(self, msg_id):
+        with self.db:
+            cur = self.db.execute(
+                """UPDATE wa_message SET status = 'ignored', note = '', updated = ?
+                   WHERE msg_id = ? AND status IN ('received', 'send_failed')""",
+                (time.time(), msg_id))
+        return cur.rowcount == 1
+
+    def wa_set_delivery(self, msg_id, status, reply, upi_uri=None, note="", order_id=None):
+        if status not in {"sent", "send_failed"}:
+            raise ValueError("invalid WhatsApp delivery status")
+        with self.db:
+            cur = self.db.execute(
+                """UPDATE wa_message
+                   SET status = ?, note = ?, order_id = COALESCE(?, order_id),
+                       reply = ?, upi_uri = ?, updated = ?
+                   WHERE msg_id = ?""",
+                (status, note, order_id, reply, upi_uri, time.time(), msg_id))
         return cur.rowcount == 1

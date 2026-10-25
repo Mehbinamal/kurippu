@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from . import billing, matcher, reader, whatsapp
 from .store import Store, parse_pricelist_csv, pricelist_to_csv, Sku
+from .wa_live import build_router
 
 STATIC = Path(__file__).resolve().parent / "static"
 UPI_RE = re.compile(r"^[\w.\-]{2,256}@[A-Za-z][A-Za-z0-9]{1,63}$")
@@ -51,6 +52,7 @@ def create_app(store=None, read=None):
     app = FastAPI(title="Kurippu", docs_url=None, redoc_url=None)
     app.state.store = store or Store()
     app.state.read = read or reader.read_order
+    app.include_router(build_router(app))
 
     @app.get("/")
     def index():
